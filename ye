@@ -1,0 +1,518 @@
+local allowedKeys = {
+	["HEXED-123"] = {expires = os.time() + 30*24*60*60, hwid = nil},
+	["HEXED-A7F2-K9Q4-X8M1"] = {expires = math.huge, hwid = nil}
+}
+
+local RbxAnalyticsService = game:GetService("RbxAnalyticsService")
+
+local function getHWID()
+	return RbxAnalyticsService:GetClientId()
+end
+
+local gate = Instance.new("ScreenGui")
+gate.Name = "KeyGate"
+gate.Parent = game.Players.LocalPlayer:WaitForChild("PlayerGui")
+
+local frame = Instance.new("Frame")
+frame.Size = UDim2.new(0, 300, 0, 180)
+frame.Position = UDim2.new(0.5, -150, 0.5, -90)
+frame.BackgroundColor3 = Color3.fromRGB(10, 10, 10)
+frame.Parent = gate
+
+-- TITLE
+local title = Instance.new("TextLabel")
+title.Size = UDim2.new(1, 0, 0, 40)
+title.BackgroundTransparency = 1
+title.Text = "HEXED"
+title.Font = Enum.Font.GothamBold
+title.TextSize = 22
+title.TextColor3 = Color3.fromRGB(160, 60, 255)
+title.Parent = frame
+local status = Instance.new("TextLabel")
+status.Size = UDim2.new(1, 0, 0, 20)
+status.Position = UDim2.new(0, 0, 0, 45)
+status.BackgroundTransparency = 1
+status.Text = ""
+status.Font = Enum.Font.Gotham
+status.TextSize = 14
+status.TextColor3 = Color3.fromRGB(200, 200, 200)
+status.Parent = frame
+
+-- DRAGGING FOR KEY UI
+local dragging = false
+local dragStart
+local startPos
+
+frame.InputBegan:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseButton1 then
+		dragging = true
+		dragStart = input.Position
+		startPos = frame.Position
+	end
+end)
+
+game:GetService("UserInputService").InputChanged:Connect(function(input)
+	if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
+		local delta = input.Position - dragStart
+
+		frame.Position = UDim2.new(
+			startPos.X.Scale,
+			startPos.X.Offset + delta.X,
+			startPos.Y.Scale,
+			startPos.Y.Offset + delta.Y
+		)
+	end
+end)
+
+game:GetService("UserInputService").InputEnded:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseButton1 then
+		dragging = false
+	end
+end)
+Instance.new("UICorner", frame)
+
+local box = Instance.new("TextBox")
+box.Size = UDim2.new(0.9, 0, 0, 40)
+box.Position = UDim2.new(0.05, 0, 0.3, 0)
+box.PlaceholderText = "Enter Key..."
+box.Text = ""
+box.Font = Enum.Font.Gotham
+box.TextSize = 16
+box.BackgroundColor3 = Color3.fromRGB(25, 0, 50)
+box.TextColor3 = Color3.new(1,1,1)
+box.Parent = frame
+local timeLabel = Instance.new("TextLabel")
+timeLabel.Size = UDim2.new(0.9, 0, 0, 20)
+timeLabel.Position = UDim2.new(0.05, 0, 0.55, 0)
+timeLabel.BackgroundTransparency = 1
+timeLabel.TextColor3 = Color3.fromRGB(200,200,200)
+timeLabel.Font = Enum.Font.Gotham
+timeLabel.TextSize = 12
+timeLabel.Text = ""
+timeLabel.Parent = frame
+task.spawn(function()
+	while gate and gate.Parent do
+		local key = box.Text
+		local data = allowedKeys[key]
+
+		if data then
+			local expiry = data.expires
+
+			if expiry == math.huge then
+				timeLabel.Text = "Permanent Key"
+			else
+				local left = expiry - os.time()
+
+				if left > 0 then
+					local days = math.floor(left / 86400)
+					local hours = math.floor((left % 86400) / 3600)
+					local mins = math.floor((left % 3600) / 60)
+
+					timeLabel.Text = string.format("Time Left: %dd %dh %dm", days, hours, mins)
+				else
+					timeLabel.Text = "Expired"
+				end
+			end
+		else
+			timeLabel.Text = ""
+		end
+
+		task.wait(1)
+	end
+end)
+
+Instance.new("UICorner", box)
+
+local btn = Instance.new("TextButton")
+btn.Size = UDim2.new(0.9, 0, 0, 35)
+btn.Position = UDim2.new(0.05, 0, 0.65, 0)
+btn.Text = "Submit"
+btn.Font = Enum.Font.GothamBold
+btn.TextSize = 16
+btn.BackgroundColor3 = Color3.fromRGB(90, 0, 150)
+btn.TextColor3 = Color3.new(1,1,1)
+btn.Parent = frame
+Instance.new("UICorner", btn)
+local timeLabel = Instance.new("TextLabel")
+timeLabel.Size = UDim2.new(0.9, 0, 0, 20)
+timeLabel.Position = UDim2.new(0.05, 0, 0.82, 0)
+timeLabel.BackgroundTransparency = 1
+timeLabel.TextColor3 = Color3.fromRGB(180, 180, 180)
+timeLabel.Font = Enum.Font.Gotham
+timeLabel.TextSize = 12
+timeLabel.Text = ""
+timeLabel.Parent = frame
+task.spawn(function()
+	while gate.Parent do
+		local key = box.Text
+		local expiry = allowedKeys[key]
+
+		if typeof(expiry) == "number" then
+			local left = expiry - os.time()
+
+			if left > 0 then
+				local days = math.floor(left / 86400)
+				timeLabel.Text = "Time Left: " .. days .. "d"
+			else
+				timeLabel.Text = "Expired"
+			end
+
+		elseif expiry == true then
+			timeLabel.Text = "UNLIMITED ACCESS"
+
+		else
+			timeLabel.Text = ""
+		end
+
+		task.wait(1)
+	end
+end)
+local unlocked = false
+
+local function formatTime(seconds)
+	if seconds == math.huge then
+		return "Permanent Key"
+	end
+
+	local diff = seconds - os.time()
+	if diff <= 0 then
+		return "Expired"
+	end
+
+	local days = math.floor(diff / 86400)
+	local hours = math.floor((diff % 86400) / 3600)
+
+	return "Expires in " .. days .. "d " .. hours .. "h"
+end
+
+local function startCountdown(label, expiry)
+	task.spawn(function()
+		while gate.Parent and expiry ~= math.huge do
+			local diff = expiry - os.time()
+
+			if diff <= 0 then
+				label.Text = "Expired"
+				break
+			end
+
+			local days = math.floor(diff / 86400)
+			local hours = math.floor((diff % 86400) / 3600)
+			local mins = math.floor((diff % 3600) / 60)
+
+			label.Text = string.format("Expires in %dd %dh %dm", days, hours, mins)
+
+			task.wait(1)
+		end
+
+		if expiry == math.huge then
+			label.Text = "Permanent Key"
+		end
+	end)
+end
+
+btn.MouseButton1Click:Connect(function()
+	local key = box.Text
+	local data = allowedKeys[key]
+
+	if not data then
+		box.Text = ""
+		box.PlaceholderText = "Invalid Key"
+		return
+	end
+
+	local hwid = getHWID()
+
+	-- check expiry
+	if data.expires ~= math.huge and os.time() > data.expires then
+		box.Text = ""
+		box.PlaceholderText = "Key Expired"
+		return
+	end
+
+	-- bind HWID first time
+	if data.hwid == nil then
+		data.hwid = hwid
+	end
+
+	-- HWID mismatch check
+	if data.hwid ~= hwid then
+		box.Text = ""
+		box.PlaceholderText = "HWID Locked"
+		return
+	end
+
+	unlocked = true
+	gate:Destroy()
+end)
+
+repeat task.wait() until unlocked
+
+local Players = game:GetService("Players")
+local TweenService = game:GetService("TweenService")
+local UIS = game:GetService("UserInputService")
+
+local player = Players.LocalPlayer
+
+local guiVisible = true
+local closed = false
+
+-- GUI ROOT
+local gui = Instance.new("ScreenGui")
+gui.Name = "HexedUI"
+gui.ResetOnSpawn = false
+gui.Parent = player:WaitForChild("PlayerGui")
+
+local main = Instance.new("Frame")
+local finalSize = UDim2.new(0, 600, 0, 350)
+local finalPos = UDim2.new(0.3, 0, 0.25, 0)
+
+main.Size = UDim2.new(0, 0, 0, 0)
+main.Position = UDim2.new(
+	finalPos.X.Scale,
+	finalPos.X.Offset + 300,
+	finalPos.Y.Scale,
+	finalPos.Y.Offset + 175
+)
+
+main.BackgroundTransparency = 1
+main.BackgroundColor3 = Color3.fromRGB(10, 10, 10)
+main.Parent = gui
+
+Instance.new("UICorner", main).CornerRadius = UDim.new(0, 12)
+
+local stroke = Instance.new("UIStroke", main)
+stroke.Color = Color3.fromRGB(160, 60, 255)
+stroke.Thickness = 2
+stroke.Transparency = 1
+
+TweenService:Create(
+	main,
+	TweenInfo.new(0.4, Enum.EasingStyle.Back, Enum.EasingDirection.Out),
+	{
+		Size = finalSize,
+		Position = finalPos,
+		BackgroundTransparency = 0
+	}
+):Play()
+
+TweenService:Create(
+	stroke,
+	TweenInfo.new(0.4),
+	{
+		Transparency = 0
+	}
+):Play()
+
+-- DRAGGING
+local dragging, dragStart, startPos
+
+main.InputBegan:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseButton1 then
+		dragging = true
+		dragStart = input.Position
+		startPos = main.Position
+	end
+end)
+
+UIS.InputChanged:Connect(function(input)
+	if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
+		local delta = input.Position - dragStart
+		main.Position = UDim2.new(
+			startPos.X.Scale,
+			startPos.X.Offset + delta.X,
+			startPos.Y.Scale,
+			startPos.Y.Offset + delta.Y
+		)
+	end
+end)
+
+UIS.InputEnded:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseButton1 then
+		dragging = false
+	end
+end)
+
+-- TOP BAR
+local top = Instance.new("Frame")
+top.Size = UDim2.new(1, 0, 0, 35)
+top.BackgroundColor3 = Color3.fromRGB(20, 0, 40)
+top.Parent = main
+Instance.new("UICorner", top).CornerRadius = UDim.new(0, 12)
+
+local title = Instance.new("TextLabel")
+title.Size = UDim2.new(1, -120, 1, 0)
+title.Position = UDim2.new(0, 10, 0, 0)
+title.BackgroundTransparency = 1
+title.Text = "HEXED"
+title.TextColor3 = Color3.fromRGB(200, 120, 255)
+title.Font = Enum.Font.GothamBold
+title.TextSize = 18
+title.TextXAlignment = Enum.TextXAlignment.Left
+title.Parent = top
+
+-- BUTTON HELPER
+local function makeBtn(text, pos, color, callback)
+	local b = Instance.new("TextButton")
+	b.Size = UDim2.new(0, 35, 0, 25)
+	b.Position = pos
+	b.Text = text
+	b.BackgroundColor3 = color
+	b.TextColor3 = Color3.new(1,1,1)
+	b.Font = Enum.Font.GothamBold
+	b.TextSize = 16
+	b.Parent = top
+	Instance.new("UICorner", b).CornerRadius = UDim.new(0, 6)
+
+	b.MouseButton1Click:Connect(callback)
+	return b
+end
+
+-- MINIMIZE
+makeBtn("-", UDim2.new(1, -80, 0, 5), Color3.fromRGB(60, 0, 90), function()
+	guiVisible = false
+	main.Visible = false
+end)
+
+-- CLOSE
+makeBtn("X", UDim2.new(1, -40, 0, 5), Color3.fromRGB(120, 0, 0), function()
+	closed = true
+	gui:Destroy()
+end)
+
+-- REOPEN "=" KEY
+UIS.InputBegan:Connect(function(input, gpe)
+	if gpe then return end
+	if input.KeyCode == Enum.KeyCode.Equals then
+		if not closed then
+			guiVisible = not guiVisible
+			if guiVisible then
+	main.Visible = true
+	main.Size = UDim2.new(0, 0, 0, 0)
+	main.Position = UDim2.new(
+		finalPos.X.Scale,
+		finalPos.X.Offset + 300,
+		finalPos.Y.Scale,
+		finalPos.Y.Offset + 175
+	)
+
+	TweenService:Create(
+		main,
+		TweenInfo.new(0.4, Enum.EasingStyle.Back, Enum.EasingDirection.Out),
+		{
+			Size = finalSize,
+			Position = finalPos
+		}
+	):Play()
+else
+	main.Visible = false
+end
+		end
+	end
+end)
+
+-- TAB SYSTEM
+local tabHolder = Instance.new("Frame")
+tabHolder.Size = UDim2.new(1, 0, 0, 35)
+tabHolder.Position = UDim2.new(0, 0, 0, 35)
+tabHolder.BackgroundTransparency = 1
+tabHolder.Parent = main
+
+local pages = {}
+
+local function createTab(name, index)
+	local btn = Instance.new("TextButton")
+	btn.Size = UDim2.new(0, 120, 1, 0)
+	btn.Position = UDim2.new(0, (index-1)*125 + 10, 0, 0)
+	btn.Text = name
+	btn.BackgroundColor3 = Color3.fromRGB(25, 0, 50)
+	btn.TextColor3 = Color3.new(1,1,1)
+	btn.Font = Enum.Font.Gotham
+	btn.TextSize = 14
+	btn.Parent = tabHolder
+	Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 8)
+
+	local page = Instance.new("Frame")
+	page.Size = UDim2.new(1, -20, 1, -90)
+	page.Position = UDim2.new(0, 10, 0, 80)
+	page.BackgroundTransparency = 1
+	page.Visible = false
+	page.Parent = main
+
+	pages[name] = page
+
+	local function resetTabs()
+	for _, t in pairs(tabHolder:GetChildren()) do
+		if t:IsA("TextButton") then
+			t.BackgroundColor3 = Color3.fromRGB(25, 0, 50)
+		end
+	end
+end
+
+btn.MouseButton1Click:Connect(function()
+	resetTabs()
+
+	for _, p in pairs(pages) do
+		p.Visible = false
+	end
+
+	page.Visible = true
+
+	TweenService:Create(btn, TweenInfo.new(0.2), {
+		BackgroundColor3 = Color3.fromRGB(90, 0, 150)
+	}):Play()
+end)
+end
+
+createTab("Home", 1)
+createTab("Scripts", 2)
+createTab("Commands", 3)
+createTab("Settings", 4)
+
+pages["Home"].Visible = true
+
+-- SAFE SPARKLES (NO STACKING / NO OVERSPAWN)
+
+local MAX_SPARKLES = 200
+local sparkles = {}
+
+local function createSparkle()
+	if #sparkles >= MAX_SPARKLES then
+		return
+	end
+
+	local dot = Instance.new("Frame")
+	dot.Size = UDim2.new(0, 3, 0, 3)
+	dot.BackgroundColor3 = Color3.fromRGB(180, 80, 255)
+	dot.BorderSizePixel = 0
+	dot.Parent = main
+
+	dot.Position = UDim2.new(math.random(), 0, math.random(), 0)
+
+	table.insert(sparkles, dot)
+
+	task.spawn(function()
+		while dot.Parent do
+			TweenService:Create(dot, TweenInfo.new(1.5), {
+				Position = UDim2.new(math.random(), 0, math.random(), 0),
+				BackgroundTransparency = math.random(3, 7) / 10
+			}):Play()
+
+			task.wait(1.5)
+		end
+
+		-- cleanup when removed
+		for i, v in ipairs(sparkles) do
+			if v == dot then
+				table.remove(sparkles, i)
+				break
+			end
+		end
+	end)
+end
+
+task.spawn(function()
+	while task.wait(2) do
+		createSparkle()
+	end
+end)
+
